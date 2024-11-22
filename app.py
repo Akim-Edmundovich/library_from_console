@@ -3,7 +3,7 @@ import json
 
 def create_book(library) -> dict:
     """
-    Создает книгу. Возвращает словарь.
+    Создает книгу. Возвращает словарь с данными о книге.
     """
     try:
 
@@ -49,20 +49,11 @@ def delete_book(library: list, book_id: int):
     """Удаляет книгу по ID"""
     book_id = validate_input_id(book_id)
 
-    if library:
-        try:
-            for book in library:
-                if book['id'] == book_id:
-                    print(book)
-                    library.pop(library.index(book))
-                    print(f'\nКнига {book["title"]} удалена из библиотеки.')
-                    return library
-
-        except:
-            ...
-
-    else:
-        return '\nВаша библиотека пуста.'
+    for book in library:
+        if book['id'] == book_id:
+            library.pop(library.index(book))
+            print(f'\nКнига {book["title"]} удалена из библиотеки.')
+            return library
 
 
 def get_book(library: list, title=None, author=None, year=None):
@@ -74,55 +65,59 @@ def get_book(library: list, title=None, author=None, year=None):
 
     title = input('Название (Enter - пропустить): ')
     author = input('Автор (Enter - пропустить): ')
+
     year = input('Год (Enter - пропустить): ')
 
     for book in library:
         if (book['title'] == title or
                 book['author'] == author or
-                book['year'] == year):
+                str(book['year']) == year):
             books_filter.append(book)
 
-    return f'\nРезультаты поиска: \n{books_filter}' if books_filter else '\nКниги не найдены'
+    return f'\nРезультаты поиска: \n{books_filter}' \
+        if books_filter else '\nКниги не найдены'
 
 
 def update_book(library: list, book_id: int, status='в наличии'):
+    """Редактирует статус книги"""
     tags = ['в наличии', 'выдана']
     """Редактирует статус книги"""
     book_id = validate_input_id(book_id)
 
-    if check_book_by_id(library, book_id):
+    if status in tags:
+        book_to_edit = [book for book in library if book['id'] == book_id]
+        book_to_edit[0]['status'] = status
+        print(f'Статус "{book_to_edit[0]["title"]}" изменен на {status}')
+        return library
 
-        if status in tags:
-            book_to_edit = [book for book in library if book['id'] == book_id]
-            book_to_edit[0]['status'] = status
-            print(f'Статус "{book_to_edit[0]["title"]}" изменен на {status}')
-            return library
-
-        else:
-            return '\n! --- Введен неверный статус --- !'
-
-
+    else:
+        print('\n! --- Введен неверный статус --- !')
+        return library
 
 
 def book_list(library):
-    return library if library else 'Библиотека пуста.'
+    """Выводит список всех книг (если они имеются)"""
+    return library if library else '\n! --- Библиотека пуста --- !'
 
 
 def validate_input_id(book_id):
     """
     Валидирует введенное значение ID.
     """
-    try:
-        book_id = int(book_id)
+    if book_id:
+        try:
+            book_id = int(book_id)
 
-    except ValueError:
+        except ValueError:
+            return False
+    else:
+        print('! --- ID не может быть пустым --- !')
         return False
 
     return int(book_id)
 
 
 def check_book_by_id(library, book_id):
-
     book_id = validate_input_id(book_id)
     if library:
         for book in library:
@@ -136,11 +131,7 @@ def check_book_by_id(library, book_id):
 def create_id(library: list):
     """Создает id на основе имеющихся в библиотеке"""
 
-    if library:
-        id_list = sorted(i['id'] for i in library)
-        return id_list[-1] + 1
-
-    return 1
+    return max(book['id'] for book in library) + 1 if library else 1
 
 
 def get_or_create_json_file(filename='library.json'):
@@ -178,7 +169,7 @@ def save_to_json(data, file='library.json'):
 
 def main():
     """
-
+    Управление программой.
     """
     hello = input('''
            --- Главное меню --- 
@@ -207,43 +198,58 @@ def main():
                 print(new_book)
                 library.append(new_book)
                 save_to_json(library)
-                print('Книга добавлена')
+                print('\nКнига добавлена')
                 main()
 
             # Обзор книги
             elif hello == '2':
-                print(get_book(library))
-                main()
+                if library:
+                    print(get_book(library))
+                    main()
+                else:
+                    print('\n! --- Библиотека пуста --- !')
+                    main()
 
             # Редактирование книги
             elif hello == '3':
-                book_id = input('Введите ID книги для редактирования: ')
+                if library:
+                    book_id = input('Введите ID книги для редактирования: ')
 
-                if check_book_by_id(library, book_id):
-                    status = input('Выберите статус: "в наличии", "выдана": ')
-                    library = update_book(library, book_id, status)
-                    save_to_json(library)
-                    main()
+                    if check_book_by_id(library, book_id):
+                        status = input(
+                            'Выберите статус: "в наличии", "выдана": ')
+                        library = update_book(library, book_id, status)
+                        save_to_json(library)
+                        main()
+                    else:
+                        main()
                 else:
-                    # print('! --- Книги с таким ID не существует --- !')
+                    print('\n! --- Библиотека пуста --- !')
                     main()
 
             # Удалить книгу
             elif hello == '4':
-                book_id = input('Введите ID книги для удаления: ')
+                if library:
+                    book_id = input('Введите ID книги для удаления: ')
 
-                if check_book_by_id(library, book_id):
-                    books = delete_book(library, book_id)
-                    save_to_json(books)
-                    main()
+                    if check_book_by_id(library, book_id):
+                        books = delete_book(library, book_id)
+                        save_to_json(books)
+                        main()
+                    else:
+                        main()
                 else:
+                    print('\n! --- Библиотека пуста --- !')
                     main()
 
             # Список всех книг
             elif hello == '5':
-                print(book_list(library))
-                main()
-
+                if library:
+                    print(book_list(library))
+                    main()
+                else:
+                    print('\n! --- Библиотека пуста --- !')
+                    main()
             # Главное меню
             elif hello == '6':
                 main()
